@@ -1,0 +1,44 @@
+# Build context is the repo root (docker build -f backend/Dockerfile .), so keep
+# the context small and never ship local/dev/secret files into the image.
+.git
+.gitignore
+.github
+.venv
+venv
+env
+**/__pycache__
+**/*.py[cod]
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Runtime data / secrets (any location)
+data
+backend/data
+backend/logs
+*.log
+.env
+*.pem
+*.key
+*service-account*.json
+
+# Docs & tooling not needed at runtime.
+# NOTE: do NOT use a blanket "*.md" — the RAG knowledge base lives in
+# backend/rag/corpus/*.md and MUST ship in the image.
+/README.md
+/ARCHITECTURE.md
+/SECURITY.md
+/TESTING.md
+/DEPLOYMENT.md
+/TROUBLESHOOTING.md
+docs
+deployment
+Makefile
+scripts
+docker-compose.yml
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea
+.vscode
