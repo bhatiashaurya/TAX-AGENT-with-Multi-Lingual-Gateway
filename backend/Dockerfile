@@ -24,6 +24,12 @@ COPY --from=builder /install /usr/local
 COPY backend /app/backend
 COPY frontend /app/frontend
 
+# Create writable dirs and hand ownership to the non-root user; otherwise the
+# app cannot create /app/backend/data (conversations, audit log) at runtime,
+# since COPY leaves /app owned by root.
+RUN mkdir -p /app/backend/data /app/backend/logs \
+    && chown -R 10001:10001 /app
+
 USER appuser
 WORKDIR /app/backend
 EXPOSE 8080
