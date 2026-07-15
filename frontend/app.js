@@ -401,6 +401,13 @@ function toggleDictation() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { toast("Voice input isn't supported in this browser. Try Chrome, or type your question."); return; }
   if (state.recognizing) { stopDictation(); return; }
+  // Browsers block mic access outside a secure context (HTTPS or localhost).
+  // Over plain http:// the Web Speech API fails with "not-allowed" no matter
+  // what the user clicks, so surface the real reason instead of a vague error.
+  if (!window.isSecureContext) {
+    toast("Voice needs a secure (HTTPS) connection — browsers block the mic on http://. Type your question, or serve the app over HTTPS.");
+    return;
+  }
   recognition = new SR();
   recognition.lang = $("langSelect").value;
   recognition.continuous = true;

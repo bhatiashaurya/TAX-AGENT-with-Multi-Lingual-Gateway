@@ -99,11 +99,43 @@ Provider-specific reference architectures (managed, autoscaling, less ops):
 - **Azure Container Apps** — [deployment/azure/deployment_guide.md](deployment/azure/deployment_guide.md)
 - **AWS App Runner / ECS / Bedrock** — [deployment/aws/deployment_guide.md](deployment/aws/deployment_guide.md)
 
+## HTTPS — required for voice input
+
+Browsers block microphone access on non-secure origins, so **voice dictation only
+works over HTTPS** (or `localhost`). Over plain `http://54.144.100.99:8080` the mic
+is denied no matter what the user clicks — text chat and the multilingual gateway
+still work fully, but voice does not.
+
+Fix: put **Caddy** in front for automatic free TLS (config:
+[deployment/aws/Caddyfile](deployment/aws/Caddyfile)). On the Ubuntu instance:
+
+```bash
+# 1. open ports 80 and 443 in the security group (in addition to 8080)
+
+# 2. install Caddy
+sudo apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt-get update && sudo apt-get install -y caddy
+
+# 3. install the Caddyfile and reload (nip.io needs no DNS signup — the hostname
+#    encodes the IP; Caddy fetches a real Let's Encrypt cert for it)
+sudo cp Caddyfile /etc/caddy/Caddyfile
+sudo systemctl reload caddy
+```
+
+Then open **https://54.144.100.99.nip.io** — real cert, secure context, mic works.
+The container keeps running on 8080; Caddy proxies to it. For a stable custom
+hostname use DuckDNS (free) — see Option B in the Caddyfile.
+
+> Quickest no-DNS alternative: `tls internal` in the Caddyfile issues a
+> self-signed cert. It's still a secure context (so the mic works) but shows a
+> one-time browser warning to click through.
+
 ## Operational notes
 
-- **HTTPS:** the instance serves plain `http` on 8080. For TLS, put **Caddy** or
-  nginx in front (Caddy auto-provisions Let's Encrypt certs); with nginx set
-  `proxy_buffering off` so SSE streams live.
+- **nginx alternative:** if you prefer nginx over Caddy, set `proxy_buffering off`
+  so SSE streams live, and bring your own cert.
 - **Health probe:** `GET /health` (200 when the LLM provider is healthy).
 - **Data:** conversations + audit log live in the `tax-agent-data` volume. Back it
   up, or move `ConversationStore` to a managed DB for multi-instance scale.

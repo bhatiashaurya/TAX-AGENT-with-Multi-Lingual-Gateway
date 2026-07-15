@@ -1,0 +1,28 @@
+# Caddy reverse proxy — terminates HTTPS in front of the Tax Agent container so
+# the browser treats the site as a secure context (required for microphone /
+# voice input, which browsers block over plain http://).
+#
+# Caddy auto-provisions and renews a Let's Encrypt certificate for the hostname.
+# Requirements on the EC2 instance:
+#   - security group inbound: 80 and 443 open (in addition to the app's 8080)
+#   - the hostname below must resolve to this instance's public IP
+#
+# --- Option A: nip.io (zero signup — the hostname encodes the IP) -------------
+# Access the app at:  https://54.144.100.99.nip.io
+54.144.100.99.nip.io {
+    encode gzip
+    # flush_interval -1 keeps SSE chat tokens streaming (no buffering).
+    reverse_proxy localhost:8080 {
+        flush_interval -1
+    }
+}
+
+# --- Option B: your own domain / DuckDNS (more reliable certs) ----------------
+# Point e.g. tax-agent.duckdns.org at this instance's IP, then use:
+#
+# tax-agent.duckdns.org {
+#     reverse_proxy localhost:8080 {
+#         flush_interval -1
+#     }
+#     encode gzip
+# }
