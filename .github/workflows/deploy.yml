@@ -13,6 +13,12 @@ permissions:
   contents: read
   packages: write
 
+# Serialize runs on the same ref so two quick pushes never race two deploys
+# onto the instance (a mid-deploy must finish before the next one starts).
+concurrency:
+  group: cicd-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   # ---------------------------------------------------------------- tests
   test:
@@ -104,5 +110,14 @@ jobs:
               -v tax-agent-data:/app/backend/data \
               "$IMAGE"
             docker image prune -f
-            echo "Deployed. Health:"
-            sleep 4 && curl -fsS http://localhost:8080/health | head -c 200 || echo "health check pending"
+            echo "Waiting for the new container to become healthy..."
+            for i in $(seq 1 15); do
+              if curl -fsS http://localhost:8080/health >/dev/null 2>&1; then
+                echo "Healthy:"; curl -s http://localhost:8080/health | head -c 200; echo
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "ERROR: new container did not become healthy in time" >&2
+            docker logs --tail 50 tax-agent || true
+            exit 1
