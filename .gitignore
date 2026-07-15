@@ -19,6 +19,14 @@ env/
 *service-account*.json
 gcp-key.json
 
+# SSH / private keys — NEVER commit these
+*.pem
+*.key
+*.pub
+tax-agent-key*
+id_rsa*
+id_ed25519*
+
 # OS / editor
 .DS_Store
 Thumbs.db
