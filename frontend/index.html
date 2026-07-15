@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tax Agent</title>
+  <link rel="stylesheet" href="vendor/hljs-github.min.css" id="hljs-light" />
+  <link rel="stylesheet" href="vendor/hljs-github-dark.min.css" id="hljs-dark" disabled />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app" id="app">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-head">
+        <button class="new-chat" id="newChat">
+          <svg viewBox="0 0 24 24" class="ic"><path d="M12 5v14M5 12h14"/></svg>
+          New chat
+        </button>
+      </div>
+      <nav class="conversations" id="convList" aria-label="Conversation history"></nav>
+      <div class="sidebar-foot">
+        <div class="brand">
+          <span class="brand-mark">₹</span>
+          <span class="brand-name">Tax Agent</span>
+        </div>
+        <div class="foot-actions">
+          <a class="icon-btn" href="/admin/security" target="_blank" title="Security monitor" aria-label="Security monitor">
+            <svg viewBox="0 0 24 24" class="ic"><path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6l7-3z"/></svg>
+          </a>
+          <button class="icon-btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">
+            <svg viewBox="0 0 24 24" class="ic"><path d="M12 3a9 9 0 109 9 7 7 0 01-9-9z"/></svg>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <header class="topbar">
+        <button class="icon-btn" id="sidebarToggle" aria-label="Toggle sidebar">
+          <svg viewBox="0 0 24 24" class="ic"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="topbar-title">Tax Agent</div>
+        <div class="model-badge" id="modelBadge" title="Active model">checking…</div>
+      </header>
+
+      <div class="thread" id="thread">
+        <section class="welcome" id="welcome">
+          <div class="welcome-mark">₹</div>
+          <h1>How can I help with your taxes?</h1>
+          <div class="suggestions" id="suggestions">
+            <button class="suggestion" data-q="What are the GST return filing deadlines and late fees?">
+              <b>GST deadlines</b><span>Return filing dates &amp; late fees</span>
+            </button>
+            <button class="suggestion" data-q="Calculate income tax on ₹14,00,000 under the new regime for FY 2024-25.">
+              <b>Tax calculation</b><span>New-regime tax on ₹14 lakh</span>
+            </button>
+            <button class="suggestion" data-q="I received a Section 143(1) intimation. How should I respond?">
+              <b>Notice response</b><span>Reading a 143(1) intimation</span>
+            </button>
+            <button class="suggestion" data-q="Explain TDS rates and thresholds for contractor and rent payments.">
+              <b>TDS rates</b><span>Sections 194C and 194I</span>
+            </button>
+          </div>
+        </section>
+        <div class="messages" id="messages"></div>
+      </div>
+
+      <div class="composer-wrap">
+        <form class="composer" id="composer" autocomplete="off">
+          <div class="attach-row" id="attachRow" hidden></div>
+          <div class="live-dictation" id="liveDictation" hidden></div>
+          <div class="composer-inner">
+            <button type="button" class="icon-btn ghost" id="attachBtn" title="Attach a document" aria-label="Attach">
+              <svg viewBox="0 0 24 24" class="ic"><path d="M21 11l-8.5 8.5a5 5 0 01-7-7L14 4a3.5 3.5 0 015 5l-8.5 8.5a2 2 0 01-3-3L15 6"/></svg>
+            </button>
+            <textarea id="input" rows="1" placeholder="Ask about GST, income tax, TDS, notices, audits…"></textarea>
+            <button type="button" class="icon-btn ghost mic" id="micBtn" title="Dictate (speak your question)" aria-label="Dictate">
+              <svg viewBox="0 0 24 24" class="ic"><path d="M12 3a3 3 0 013 3v6a3 3 0 01-6 0V6a3 3 0 013-3z"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg>
+            </button>
+            <button type="submit" class="send-btn" id="sendBtn" title="Send" aria-label="Send" disabled>
+              <svg viewBox="0 0 24 24" class="ic send"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              <svg viewBox="0 0 24 24" class="ic stop" hidden><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg>
+            </button>
+          </div>
+          <div class="composer-foot">
+            <select id="langSelect" title="Dictation language">
+              <option value="en-IN">English</option>
+              <option value="hi-IN">हिन्दी</option>
+              <option value="ta-IN">தமிழ்</option>
+              <option value="te-IN">తెలుగు</option>
+              <option value="kn-IN">ಕನ್ನಡ</option>
+              <option value="mr-IN">मराठी</option>
+            </select>
+            <span class="foot-hint">Tax Agent can make mistakes. Verify important decisions. <kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for newline</span>
+          </div>
+        </form>
+        <input type="file" id="fileInput" hidden multiple accept=".txt,.md,.csv,.json,.log,.pdf,.tsv,.yaml,.yml" />
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="vendor/marked.min.js"></script>
+  <script src="vendor/purify.min.js"></script>
+  <script src="vendor/highlight.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

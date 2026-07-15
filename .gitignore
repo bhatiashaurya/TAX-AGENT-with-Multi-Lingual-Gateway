@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Secrets / local config
+.env
+*.local
+
+# Cloud creds
+*service-account*.json
+gcp-key.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Build / runtime
+dist/
+build/
+*.log
+
+# Tax Agent runtime data (conversations, audit trail, reports) — any location
+data/
+backend/data/
+
+# Local STT model cache
+*.mdl

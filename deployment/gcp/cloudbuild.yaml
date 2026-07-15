@@ -1,0 +1,15 @@
+# Build the image from the repo root (so the frontend is bundled) and push.
+#   gcloud builds submit --config deployment/gcp/cloudbuild.yaml
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - backend/Dockerfile
+      - -t
+      - gcr.io/$PROJECT_ID/nth-voice-gateway:latest
+      - .
+images:
+  - gcr.io/$PROJECT_ID/nth-voice-gateway:latest
+options:
+  logging: CLOUD_LOGGING_ONLY
