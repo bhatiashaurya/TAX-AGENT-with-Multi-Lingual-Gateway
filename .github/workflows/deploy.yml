@@ -90,12 +90,14 @@ jobs:
         uses: appleboy/ssh-action@v1.2.0
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GROQ_MODEL: ${{ vars.GROQ_MODEL }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          # Forward the key (if set) into the remote script without echoing it.
-          envs: ANTHROPIC_API_KEY
+          # Forward the keys (if set) into the remote script without echoing them.
+          envs: ANTHROPIC_API_KEY,GROQ_API_KEY,GROQ_MODEL
           script: |
             set -e
             IMAGE=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/tax-agent:latest
@@ -105,14 +107,17 @@ jobs:
             # container), then run the fresh image.
             docker ps --filter publish=8080 -q | xargs -r docker rm -f
             docker rm -f tax-agent 2>/dev/null || true
-            # Use Claude when an ANTHROPIC_API_KEY secret is configured; otherwise
-            # fall back to the offline mock. The key is passed as a runtime env,
-            # never baked into the image.
-            if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+            # Pick the LLM from whichever key is configured (Groq preferred as a
+            # free option, then Claude), else the offline mock. Keys are passed as
+            # runtime env, never baked into the image.
+            if [ -n "${GROQ_API_KEY:-}" ]; then
+              echo "LLM: groq (${GROQ_MODEL:-llama-3.3-70b-versatile})"
+              LLM_ENV="-e LLM_PROVIDER=groq -e GROQ_API_KEY=${GROQ_API_KEY} -e GROQ_MODEL=${GROQ_MODEL:-llama-3.3-70b-versatile}"
+            elif [ -n "${ANTHROPIC_API_KEY:-}" ]; then
               echo "LLM: anthropic (Claude)"
               LLM_ENV="-e LLM_PROVIDER=anthropic -e ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}"
             else
-              echo "LLM: mock (offline) — add an ANTHROPIC_API_KEY secret to use Claude"
+              echo "LLM: mock (offline) — add a GROQ_API_KEY or ANTHROPIC_API_KEY secret for a real model"
               LLM_ENV="-e LLM_PROVIDER=mock"
             fi
             # Named volume persists conversations/audit across deploys AND keeps

@@ -127,9 +127,22 @@ async def test_mock_llm_no_grounding_asks_for_detail():
 
 
 def test_llm_factory_falls_back_to_mock_without_credentials():
-    # LLM_PROVIDER defaults to mock; even if set to anthropic without a key it
-    # must not crash the app.
-    assert build_llm().name in ("mock", "anthropic")
+    # LLM_PROVIDER defaults to mock; even if set to a cloud provider without a
+    # key it must fall back to mock, not crash the app.
+    assert build_llm().name in ("mock", "anthropic", "groq")
+
+
+def test_groq_provider_parses_openai_sse_and_gates_on_key():
+    from llm.groq_llm import GroqLLM
+
+    g = GroqLLM()
+    # Unconfigured without a key.
+    assert g.is_configured() is False
+    # Parses OpenAI-style streaming lines into content deltas.
+    assert g._delta_from_line('data: {"choices":[{"delta":{"content":"Hello"}}]}') == "Hello"
+    assert g._delta_from_line("data: [DONE]") is None
+    assert g._delta_from_line(": keep-alive") is None
+    assert g._delta_from_line('data: {"choices":[{"delta":{}}]}') is None
 
 
 # --------------------------------------------------------------------------- #

@@ -83,11 +83,22 @@ user is in the `docker` group (step A).
 
 **4. Trigger:** Actions → latest run → **Re-run jobs** (or push any change).
 
-### Using real Claude in production
+### Using a real LLM instead of the offline mock
 
-Add `ANTHROPIC_API_KEY` as a secret, pass it to the container in the deploy step
-(`-e LLM_PROVIDER=anthropic -e ANTHROPIC_API_KEY=…`), and `pip install anthropic`
-is already in `requirements.txt`. Never bake the key into the image.
+The deploy step auto-selects the model from whichever secret you set (no code
+change), passed as a runtime env — never baked into the image:
+
+| Secret | Effect | Cost |
+|---|---|---|
+| `GROQ_API_KEY` | Groq (Llama etc.), OpenAI-compatible, streaming | **Free tier** — recommended |
+| `ANTHROPIC_API_KEY` | Anthropic Claude | Usage-based |
+| _(neither)_ | Offline mock | Free |
+
+Groq is preferred when both are set. Optionally set a repo **variable**
+`GROQ_MODEL` (default `llama-3.3-70b-versatile`) to pick the model — get a free
+key at https://console.groq.com/keys. Add the secret in **Settings → Secrets and
+variables → Actions**, then re-run the deploy; `/health` will report the active
+provider.
 
 ---
 

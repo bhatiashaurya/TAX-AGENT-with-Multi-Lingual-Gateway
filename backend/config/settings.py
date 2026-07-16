@@ -114,10 +114,14 @@ class Settings(BaseSettings):
     CORS_ALLOW_METHODS: list[str] = Field(default_factory=lambda: ["GET", "POST", "OPTIONS"])
 
     # -- LLM (Tax Agent chat) ------------------------------------------------
-    # ``mock`` runs fully offline; ``anthropic`` uses Claude when a key is set.
-    LLM_PROVIDER: Literal["mock", "anthropic"] = "mock"
+    # ``mock`` runs fully offline; ``anthropic`` uses Claude; ``groq`` uses
+    # Groq's OpenAI-compatible API (fast, generous free tier, open models).
+    LLM_PROVIDER: Literal["mock", "anthropic", "groq"] = "mock"
     ANTHROPIC_API_KEY: str = ""
     ANTHROPIC_MODEL: str = "claude-opus-4-8"
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_MAX_TOKENS: int = 4096
     LLM_MAX_TOKENS: int = 16000
     LLM_TIMEOUT_SECONDS: float = 120.0
     # Mock realism: per-chunk streaming delay and simulated transient failures.
