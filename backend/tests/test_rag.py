@@ -63,6 +63,15 @@ def test_corpus_covers_core_topics():
         assert any(expect.lower() in h.source.lower() for h in hits), f"{query!r} -> {[h.source for h in hits]}"
 
 
+def test_rules_2026_ingested_and_retrievable():
+    """The ingested Income-tax Rules, 2026 must be indexed and retrievable."""
+    r = build_retriever()
+    hits = r.retrieve("When do the Income-tax Rules 2026 come into force?")
+    assert hits
+    assert any("Rules, 2026" in h.source for h in hits)
+    assert any("Rule 1" in h.section for h in hits)
+
+
 def test_ingestion_contract_indexes_new_documents():
     """The user's future Tax Risk dataset maps onto Document; indexing is additive."""
     r = build_retriever()

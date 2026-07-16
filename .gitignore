@@ -44,3 +44,7 @@ backend/data/
 
 # Local STT model cache
 *.mdl
+
+# Large source PDFs — extract into the corpus via rag/ingest_pdf.py, then commit
+# the processed .md, never the multi-MB binary.
+*.pdf
