@@ -121,7 +121,9 @@ class Settings(BaseSettings):
     ANTHROPIC_MODEL: str = "claude-opus-4-8"
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
-    GROQ_MAX_TOKENS: int = 4096
+    # Kept modest so requests fit the free-tier per-minute token budget
+    # (70b free tier is ~12k TPM; max_tokens is reserved against it).
+    GROQ_MAX_TOKENS: int = 1500
     LLM_MAX_TOKENS: int = 16000
     LLM_TIMEOUT_SECONDS: float = 120.0
     # Mock realism: per-chunk streaming delay and simulated transient failures.

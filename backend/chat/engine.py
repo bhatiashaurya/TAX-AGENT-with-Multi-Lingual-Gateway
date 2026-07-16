@@ -17,7 +17,7 @@ from typing import Any, AsyncIterator
 
 from chat.conversation_store import ConversationStore, new_message
 from config.settings import settings
-from llm.base import ChatTurn, LLMError, LLMProvider
+from llm.base import ChatTurn, LLMError, LLMProvider, LLMRateLimitError, LLMTransientError
 from rag.retriever import Retriever
 from security.guardrails import Guardrails
 from services.hinglish_normalizer import normalize as normalize_hinglish
@@ -173,7 +173,9 @@ class ChatEngine:
         stop_reason = "end_turn"
 
         try:
-            async for event in self.llm.stream_chat(turns, system, grounding, settings.LLM_MAX_TOKENS):
+            # No hardcoded max_tokens: each provider applies its own default
+            # (Groq's is small to fit the free-tier per-minute budget).
+            async for event in self.llm.stream_chat(turns, system, grounding):
                 etype = event.get("type")
                 if etype == "text":
                     clean = self.guardrails.sanitize_output(event["text"])
@@ -193,9 +195,14 @@ class ChatEngine:
                 elif etype == "done":
                     stop_reason = event.get("stop_reason", "end_turn")
         except LLMError as e:
+            # Log the real cause server-side; never leak provider internals
+            # (org ids, endpoints, keys) into the user-facing reply.
+            print(f'{{"level":"error","provider":"{self.llm.name}","llm_error":"{type(e).__name__}"}}')
+            busy = isinstance(e, (LLMRateLimitError, LLMTransientError))
             fallback = (
-                "\n\n_I hit a problem generating a full answer (the model provider was "
-                f"unavailable: {e}). Please try again in a moment._"
+                "\n\n_The model is busy right now (rate limit) — please wait a few seconds and try again._"
+                if busy else
+                "\n\n_I couldn't complete that answer just now. Please try again in a moment._"
             )
             collected.append(fallback)
             yield _sse({"type": "text", "text": fallback})

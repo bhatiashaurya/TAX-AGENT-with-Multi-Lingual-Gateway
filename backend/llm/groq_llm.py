@@ -93,8 +93,10 @@ class GroqLLM(LLMProvider):
                 async with client.stream("POST", _ENDPOINT, json=payload, headers=headers) as resp:
                     if resp.status_code == 401:
                         raise LLMAuthError("Groq authentication failed (check GROQ_API_KEY)", provider=self.name)
-                    if resp.status_code == 429:
-                        raise LLMRateLimitError("Groq rate limit hit", provider=self.name)
+                    # Free-tier returns 413 when a request would exceed the
+                    # per-minute token budget — that's a rate limit, not a client bug.
+                    if resp.status_code in (429, 413):
+                        raise LLMRateLimitError("Groq rate/size limit hit (free-tier TPM)", provider=self.name)
                     if resp.status_code >= 500:
                         raise LLMTransientError(f"Groq server error {resp.status_code}", provider=self.name)
                     if resp.status_code >= 400:
