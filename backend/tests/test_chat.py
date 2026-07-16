@@ -82,9 +82,31 @@ async def test_mock_llm_tool_call_for_calculation():
     events = await _collect(llm.stream_chat(turns, "system", []))
     tool = next((e for e in events if e["type"] == "tool_use"), None)
     assert tool is not None and tool["name"] == "tax_calculator"
-    # 13.5L taxable -> 1,10,000 tax before cess (verified against slabs)
-    assert tool["result"]["tax_before_cess"] == 110000
-    assert tool["result"]["total_tax"] == 114400
+    # gross 14L - 75k std deduction = 13.25L taxable -> 1,05,000 before cess
+    assert tool["result"]["tax_before_cess"] == 105000
+    assert tool["result"]["total_tax"] == 109200
+    # the answer states the number rather than dumping rule text
+    answer = "".join(e["text"] for e in events if e["type"] == "text")
+    assert "Total tax payable" in answer
+    assert "109,200" in answer
+
+
+@pytest.mark.parametrize(
+    "phrasing",
+    [
+        "what is income tax for 24 lacs income",
+        "what will be the tax for 24 lakhs",
+        "how much tax on 2400000",
+        "tax payable on 24 lakh salary",
+    ],
+)
+async def test_mock_llm_calculator_parses_income_phrasings(phrasing):
+    """The exact phrasings that previously fell through to text-dumping."""
+    llm = MockLLM()
+    events = await _collect(llm.stream_chat([ChatTurn("user", phrasing)], "system", []))
+    tool = next((e for e in events if e["type"] == "tool_use"), None)
+    assert tool is not None, f"calculator did not trigger for: {phrasing!r}"
+    assert tool["input"]["gross_income"] == 2_400_000
 
 
 async def test_mock_llm_simulated_failures():

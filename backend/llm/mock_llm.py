@@ -52,7 +52,7 @@ _NEW_REGIME_SLABS = [
     (1_500_000, 0.20),
     (float("inf"), 0.30),
 ]
-_STANDARD_DEDUCTION = 50_000
+_STANDARD_DEDUCTION = 75_000  # new regime, FY 2024-25
 _REBATE_87A_LIMIT = 700_000  # zero tax up to this taxable income (new regime)
 
 
@@ -228,22 +228,60 @@ class MockLLM(LLMProvider):
     # ------------------------------------------------------------------ #
     @staticmethod
     def _calculator_intent(query: str) -> float | None:
-        if not re.search(r"\b(calculate|compute|how much tax|tax on|tax for)\b", query, re.I):
+        """Return the income to compute tax on, or None.
+
+        Fires on a tax-computation question that carries an income amount, in
+        either Indian-numbering units ("24 lakh", "24 lakhs", "24 lacs", "1.5 cr")
+        or a bare rupee figure ("tax on 2400000").
+        """
+        if not re.search(
+            r"\b(calculate|compute|how much|income tax|tax (on|for|of|payable)|liability)\b",
+            query, re.I,
+        ):
             return None
-        amounts = re.findall(r"(?:₹|rs\.?\s*)?([\d,]{4,})\s*(lakh|lac|crore|l|cr)?", query, re.I)
-        for raw, unit in amounts:
-            try:
-                value = float(raw.replace(",", ""))
-            except ValueError:
-                continue
-            unit = (unit or "").lower()
-            if unit in ("lakh", "lac", "l"):
-                value *= 100_000
-            elif unit in ("crore", "cr"):
-                value *= 10_000_000
-            if value >= 100_000:
+        # amount + Indian-numbering unit (handles plurals: lakh/lakhs/lac/lacs/crore/crores/cr)
+        for raw, unit in re.findall(
+            r"(?:₹|rs\.?\s*)?([\d][\d,]*(?:\.\d+)?)\s*(lakhs?|lacs?|crores?|cr)\b", query, re.I
+        ):
+            value = float(raw.replace(",", ""))
+            value *= 10_000_000 if unit.lower().startswith(("crore", "cr")) else 100_000
+            if value >= 50_000:
+                return value
+        # bare rupee figure (>= 1,00,000, i.e. 6+ digits)
+        for raw in re.findall(r"(?:₹|rs\.?\s*)?([\d,]{6,})", query):
+            value = float(raw.replace(",", ""))
+            if value >= 50_000:
                 return value
         return None
+
+    @staticmethod
+    def _render_tax_answer(result: dict[str, Any]) -> str:
+        """A focused, computed answer — the user asked for a number, give it."""
+        lines = [
+            f"For a gross income of **₹{result['gross_income']:,}**, the income tax under the "
+            f"**new regime (FY 2024-25 slabs)** works out as follows:",
+            "",
+            "| Item | Amount |",
+            "|---|---|",
+            f"| Gross income | ₹{result['gross_income']:,} |",
+            f"| Standard deduction | ₹{result['standard_deduction']:,} |",
+            f"| Taxable income | ₹{result['taxable_income']:,} |",
+            f"| Tax before cess | ₹{result['tax_before_cess']:,} |",
+            f"| Health & education cess (4%) | ₹{result['health_education_cess_4pct']:,} |",
+            f"| **Total tax payable** | **₹{result['total_tax']:,}** |",
+            "",
+        ]
+        if result["total_tax"] == 0:
+            lines.append("**No tax is payable** — the Section 87A rebate zeroes tax up to ₹7,00,000 of taxable income.")
+        else:
+            eff = round(100 * result["total_tax"] / max(1, result["gross_income"]), 1)
+            lines.append(f"That's an effective rate of about **{eff}%** of gross income.")
+        lines.append("")
+        lines.append(
+            "_Assumes salary income with the standard deduction, new regime. Tell me your "
+            "actual deductions or if you want the old regime, and I'll recompute._"
+        )
+        return "\n".join(lines)
 
     # ------------------------------------------------------------------ #
     # Provider interface
@@ -270,8 +308,9 @@ class MockLLM(LLMProvider):
         seed = int(seed_match.group(1)) if seed_match else 0
 
         income = self._calculator_intent(query)
-        tool_result: dict[str, Any] | None = None
         if income is not None:
+            # A computation question: run the tool and answer with the number,
+            # not a dump of retrieved rule text.
             tool_result = _compute_new_regime_tax(income)
             yield {
                 "type": "tool_use",
@@ -280,23 +319,9 @@ class MockLLM(LLMProvider):
                 "result": tool_result,
             }
             await asyncio.sleep(delay * 6)
-
-        answer, confidence = self._compose(query, turns, grounding, seed)
-
-        if tool_result:
-            calc = (
-                f"Using the new-regime slabs for FY 2024-25 on a gross income of "
-                f"₹{tool_result['gross_income']:,}:\n\n"
-                f"| Item | Amount |\n|---|---|\n"
-                f"| Standard deduction | ₹{tool_result['standard_deduction']:,} |\n"
-                f"| Taxable income | ₹{tool_result['taxable_income']:,} |\n"
-                f"| Tax before cess | ₹{tool_result['tax_before_cess']:,} |\n"
-                f"| Health & education cess (4%) | ₹{tool_result['health_education_cess_4pct']:,} |\n"
-                f"| **Total tax** | **₹{tool_result['total_tax']:,}** |\n\n"
-            )
-            if tool_result["total_tax"] == 0:
-                calc += "No tax is payable — the Section 87A rebate applies below ₹7,00,000.\n\n"
-            answer = calc + answer
+            answer, confidence = self._render_tax_answer(tool_result), 0.95
+        else:
+            answer, confidence = self._compose(query, turns, grounding, seed)
 
         # Stream in small chunks so the UI renders progressively.
         buf: list[str] = []

@@ -88,10 +88,14 @@ jobs:
       - name: Deploy over SSH
         if: steps.gate.outputs.ready == 'true'
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          # Forward the key (if set) into the remote script without echoing it.
+          envs: ANTHROPIC_API_KEY
           script: |
             set -e
             IMAGE=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/tax-agent:latest
@@ -101,12 +105,22 @@ jobs:
             # container), then run the fresh image.
             docker ps --filter publish=8080 -q | xargs -r docker rm -f
             docker rm -f tax-agent 2>/dev/null || true
+            # Use Claude when an ANTHROPIC_API_KEY secret is configured; otherwise
+            # fall back to the offline mock. The key is passed as a runtime env,
+            # never baked into the image.
+            if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+              echo "LLM: anthropic (Claude)"
+              LLM_ENV="-e LLM_PROVIDER=anthropic -e ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}"
+            else
+              echo "LLM: mock (offline) — add an ANTHROPIC_API_KEY secret to use Claude"
+              LLM_ENV="-e LLM_PROVIDER=mock"
+            fi
             # Named volume persists conversations/audit across deploys AND keeps
             # the app's non-root user (uid 10001) able to write (bind mounts would
             # inherit host ownership and break that).
             docker run -d --name tax-agent --restart unless-stopped \
               -p 8080:8080 \
-              -e LLM_PROVIDER=mock \
+              $LLM_ENV \
               -v tax-agent-data:/app/backend/data \
               "$IMAGE"
             docker image prune -f
